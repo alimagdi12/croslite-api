@@ -12,8 +12,11 @@ const jwt = require("jsonwebtoken");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "alimagdi12367@gmail.com",
-    pass: "aimorddjdtspxute",
+    user: "croslitecs2024@gmail.com",
+    pass: "pkbvygukwibuoneo",
+  },
+  tls: {
+    rejectUnauthorized: false, // This bypasses SSL certificate validation errors
   },
 });
 
@@ -172,7 +175,7 @@ exports.postCartDeleteProduct = async (req, res) => {
 };
 
 exports.postOrder = async (req, res) => {
-  const token = req.cookies.token;
+  const token = req.headers.token;
 
   if (!token) {
     return res
