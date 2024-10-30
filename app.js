@@ -21,8 +21,8 @@ const corsOptions = {
   credentials: true, // Allow credentials (e.g., cookies, authorization headers)
 };
 const sslOptions = {
-  key: fs.readFileSync('./server.key'),
-  cert: fs.readFileSync('./server.crt'),
+  key: fs.readFileSync('./certs/server.key'),
+  cert: fs.readFileSync('./certs/server.crt'),
 };
 
 app.use(cors(corsOptions));
