@@ -16,7 +16,7 @@ const adminRoutes = require("./routes/admin");
 const shopRoutes = require("./routes/shop");
 const authRoutes = require("./routes/auth");
 const corsOptions = {
-  origin: "http://localhost:3000", // Allow this origin to access your server
+  origin: "http://croslite.com.eg", // Allow this origin to access your server
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Allow these HTTP methods
   credentials: true, // Allow credentials (e.g., cookies, authorization headers)
 };
@@ -43,6 +43,6 @@ mongoose
     });
     // app.listen(port);
   })
-  .catch((err) => {
+  .catch((err) => { 
     console.log(err);
   });

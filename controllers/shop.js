@@ -206,8 +206,8 @@ exports.postOrder = async (req, res) => {
 
     // Send email with product details
     await transporter.sendMail({
-      to: decodedToken.email,
-      from: "alimagdi12367@gmail.com",
+      to: [decodedToken.email, "croslitecs2024@gmail.com"],
+      from: "croslitecs2024@gmail.com",
       subject: "Order Details",
       html: `
       <html lang="en">
@@ -288,7 +288,7 @@ exports.postOrder = async (req, res) => {
                     (product) =>
                       `<li>${product.product.title} - ${
                         product.quantity
-                      } x $${product.product.price.toFixed(2)}</li>`
+                      } x $${decodedToken.email}</li>`
                   )
                   .join("")}
               </ul>
