@@ -289,15 +289,15 @@ exports.postOrder = async (req, res) => {
                       `<li>${product.product.title} - ${
                         product.quantity
                       } x $${decodedToken.email}</li>`
+                      }`
+
                   )
                   .join("")}
               </ul>
-              <p class="total" id="total-price">Total Price: $${totalPrice.toFixed(
-                2
-              )}</p>
+              <p class="total" id="total-price">${decodedToken.email}</p>
             </div>
             <div class="footer">
-              <p>&copy; 2024 Your Company. All rights reserved.</p>
+              <p>&copy; 2024 Active Group. All rights reserved.</p>
             </div>
           </div>
         </body>

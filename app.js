@@ -1,3 +1,4 @@
+
 const path = require("path");
 require("dotenv").config();
 const express = require("express");
@@ -16,13 +17,14 @@ const adminRoutes = require("./routes/admin");
 const shopRoutes = require("./routes/shop");
 const authRoutes = require("./routes/auth");
 const corsOptions = {
-  origin: "http://croslite.com.eg", // Allow this origin to access your server
+  origin: ['https://www.croslite.com.eg:3000','https://www.croslite.com.eg','https://croslite.com.eg','https://api.croslite.com.eg:3000','https://croslite.com.eg:3000'], // Allow this origin to access your server
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Allow these HTTP methods
   credentials: true, // Allow credentials (e.g., cookies, authorization headers)
 };
 const sslOptions = {
-  key: fs.readFileSync('./certs/server.key'),
-  cert: fs.readFileSync('./certs/server.crt'),
+  key: fs.readFileSync('/var/cpanel/ssl/apache_tls/api.croslite.com.eg/combined'),
+  cert: fs.readFileSync('/var/cpanel/ssl/apache_tls/api.croslite.com.eg/combined'),
+  ca: fs.readFileSync('/var/cpanel/ssl/apache_tls/api.croslite.com.eg/combined')
 };
 
 app.use(cors(corsOptions));
@@ -38,11 +40,12 @@ mongoose
   .then((result) => {
     console.log("database connected");
     // Start the HTTPS server
-    https.createServer(sslOptions, app).listen(port, () => {
+    https.createServer(sslOptions, app).listen(3001, '0.0.0.0',() => {
       console.log(`HTTPS server is running on port ${port}`);
     });
-    // app.listen(port);
+     // app.listen(port);
   })
   .catch((err) => { 
     console.log(err);
   });
+
