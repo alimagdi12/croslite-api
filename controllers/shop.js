@@ -286,14 +286,11 @@ exports.postOrder = async (req, res) => {
                 ${products
                   .map(
                     (product) =>
-                      `<li>${product.product.title} - ${
-                        product.quantity
-                      } x $${decodedToken.email}</li>`
-                      }`
-
+                      `<li>${product.product.title} - ${product.quantity} x $${decodedToken.email}</li>`
                   )
                   .join("")}
               </ul>
+
               <p class="total" id="total-price">${decodedToken.email}</p>
             </div>
             <div class="footer">
