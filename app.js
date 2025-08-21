@@ -9,6 +9,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const cors = require("cors");
 const fs = require('fs');
 const https = require('https');
+const cookieParser = require("cookie-parser");
 
 const app = express();
 
@@ -22,12 +23,13 @@ const corsOptions = {
     'https://www.croslite.com.eg',
     'https://croslite.com.eg',
     'https://api.croslite.com.eg:3000',
-    'https://croslite.com.eg:3000'
+    'https://croslite.com.eg:3000',
+    'http://localhost:4200'
   ],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
 };
-
+app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());

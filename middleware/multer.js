@@ -1,45 +1,81 @@
 const { ref, uploadBytes, getDownloadURL } = require("firebase/storage");
 const { storage } = require("../firebase.config");
 const multer = require("multer");
-const stream = require("stream");
 
-const upload = multer().array("images", 5); // Up to 5 images
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit per file
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+}).array("images", 5); // Up to 5 images
 
 exports.uploadImage = (req, res, next) => {
-  return new Promise((resolve, reject) => {
-    upload(req, res, async (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        try {
-          // Upload each file to Firebase Storage using streaming
-          const fileUrls = [];
-          for (const file of req.files) {
-            const storageRef = ref(
-              storage,
-              `images/${Date.now()}-${file.originalname}`
-            );
-            const metadata = { contentType: file.mimetype };
+  upload(req, res, async (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
 
-            // Create a readable stream from the buffer
-            const fileStream = new stream.PassThrough();
-            fileStream.end(file.buffer);
-
-            // Upload the file stream to Firebase Storage
-            await uploadBytes(storageRef, fileStream, metadata);
-
-            // Get the download URL and push it to the URLs array
-            const imageUrl = await getDownloadURL(storageRef);
-            fileUrls.push(imageUrl);
-          }
-
-          // Files uploaded successfully, return the URLs
-          console.log("Files uploaded successfully");
-          resolve(fileUrls);
-        } catch (uploadError) {
-          reject(uploadError);
-        }
+    try {
+      // If no files were uploaded, continue to next middleware
+      if (!req.files || req.files.length === 0) {
+        req.fileUrls = [];
+        return next();
       }
-    });
+
+      console.log(`Processing ${req.files.length} files...`);
+
+      // Upload each file to Firebase Storage
+      const uploadPromises = req.files.map(async (file) => {
+        try {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const fileName = `images/${uniqueSuffix}-${file.originalname}`;
+          const storageRef = ref(storage, fileName);
+          
+          console.log(`Uploading file: ${fileName}`);
+          
+          // Upload the file buffer directly (no need for streams)
+          const snapshot = await uploadBytes(storageRef, file.buffer, {
+            contentType: file.mimetype,
+          });
+
+          // Get the download URL
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          console.log(`File uploaded successfully: ${downloadURL}`);
+          
+          return downloadURL;
+        } catch (fileError) {
+          console.error('Error uploading file:', fileError);
+          throw fileError;
+        }
+      });
+
+      // Wait for all uploads to complete
+      const fileUrls = await Promise.all(uploadPromises);
+      req.fileUrls = fileUrls;
+      
+      console.log('All files uploaded successfully');
+      next();
+      
+    } catch (uploadError) {
+      console.error('Upload process error:', uploadError);
+      res.status(500).json({
+        success: false,
+        message: 'File upload failed',
+        error: uploadError.message
+      });
+    }
   });
 };

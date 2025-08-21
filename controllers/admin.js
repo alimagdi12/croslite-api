@@ -2,36 +2,68 @@ const { validationResult } = require("express-validator/check");
 const jwt = require("jsonwebtoken");
 const { ref, uploadBytes, getDownloadURL } = require("firebase/storage");
 const { storage } = require("../firebase.config");
-
+const { v4: uuidv4 } = require("uuid");
 const Product = require("../models/product");
 
-exports.getDashboard = async (req, res, next) => {
+// Get all products for the authenticated user
+exports.getDashboard = async (req, res) => {
   try {
-    const token = await req.cookies.token;
-    const decodedToken = jwt.verify(token, "your_secret_key");
-    const userId = decodedToken.userId;
-    let isAuthenticated = false; // Initialize isAuthenticated outside of the if block
-    if (token) {
-      isAuthenticated = true;
-      const products = await Product.find({ userId: userId });
-      console.log(products);
-      res.render("dashboard/index.ejs", {
-        prods: products,
-        pageTitle: "Admin Products",
-        path: "/admin/products",
-        isAuthenticated: isAuthenticated, // Use the initialized value
+    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
       });
     }
+
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
+    const userId = decodedToken.userId;
+    
+    const products = await Product.find({ userId: userId });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        products: products,
+        totalProducts: products.length
+      }
+    });
   } catch (err) {
-    console.log(err);
-    res.redirect("/login");
+    console.error(err);
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid token" 
+      });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Token expired" 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: err.message 
+    });
   }
 };
 
+// Add a new product
 exports.postAddProduct = async (req, res) => {
   try {
+    console.log('Request body:', req.body);
+    console.log('Uploaded files:', req.files ? req.files.length : 0);
+    console.log('File URLs:', req.fileUrls || []);
+
     const {
       title,
+      arabicTitle,
       price,
       description,
       details,
@@ -42,78 +74,121 @@ exports.postAddProduct = async (req, res) => {
       size,
       firstColor,
       secondColor,
+      rating
     } = req.body;
 
+    // Validate request
     const errors = validationResult(req);
-    const token = req.cookies.token;
+    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
 
-    if (!token) return res.status(401).json({ message: "No token provided" });
-    if (!errors.isEmpty())
-      return res.status(400).json({ errors: errors.array() });
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false, 
+        errors: errors.array() 
+      });
+    }
 
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    // Verify token
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
     const userId = decodedToken.userId;
 
-    const productName = title.split(" ").join("");
-    const folderName = `${productName}-${uuidv4()}`;
-
+    // Create product
     const product = new Product({
       title,
-      price,
+      arabicTitle,
+      price: parseFloat(price),
       description,
       details,
-      imageUrl: { images: [] },
-      sizeFrom,
-      sizeTo,
+      imageUrl: { 
+        images: req.fileUrls || [] // Use the uploaded file URLs
+      },
+      sizeFrom: sizeFrom ? parseInt(sizeFrom) : undefined,
+      sizeTo: sizeTo ? parseInt(sizeTo) : undefined,
       sizeInLetters,
       sizeInCm,
-      size,
+      size: size ? { range: Array.isArray(size) ? size : [size] } : { range: [] },
       firstColor,
       secondColor,
+      rating: rating ? parseFloat(rating) : undefined,
       userId,
     });
 
-    if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map(async (file) => {
-        const storageRef = ref(
-          storage,
-          `images/${folderName}/${Date.now()}-${file.originalname}`
-        );
-        const metadata = { contentType: file.mimetype };
-
-        const snapshot = await uploadBytes(storageRef, file.buffer, metadata);
-        const imageUrl = await getDownloadURL(snapshot.ref);
-        product.imageUrl.images.push(imageUrl);
-      });
-
-      await Promise.all(uploadPromises);
-    }
-
+    // Save product
     const savedProduct = await product.save();
-    res
-      .status(201)
-      .json({ msg: "Product added successfully", productId: savedProduct._id });
+    console.log('Product saved successfully:', savedProduct._id);
+    
+    res.status(201).json({ 
+      success: true,
+      message: "Product added successfully", 
+      data: {
+        product: savedProduct
+      }
+    });
+    
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "An error occurred", error: err.message });
+    console.error('Error in postAddProduct:', err);
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid token" 
+      });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Token expired" 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "An error occurred while adding product", 
+      error: err.message 
+    });
   }
 };
 
+// Update an existing product
 exports.postEditProduct = async (req, res) => {
   try {
-    const token = req.cookies.token; // Retrieve the token from cookies
+    console.log('Update product request received');
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('Uploaded files:', req.files ? req.files.length : 0);
+    console.log('File URLs:', req.fileUrls || []);
+
+    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+    
     if (!token) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized: No token provided." });
+      return res.status(401).json({ 
+        success: false,
+        message: "Authentication required" 
+      });
     }
 
-    const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
-    const email = decodedToken.email;
-    const prodId = req.body.productId;
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
+    const userId = decodedToken.userId;
+    const prodId = req.params.productId;
+
+    if (!prodId) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required"
+      });
+    }
 
     const {
       title: updatedTitle,
+      arabicTitle: updatedArabicTitle,
       price: updatedPrice,
       description: updatedDesc,
       details: updatedDetails,
@@ -124,11 +199,14 @@ exports.postEditProduct = async (req, res) => {
       size: updatedSize,
       firstColor,
       secondColor,
+      rating: updatedRating,
+      keepExistingImages = "false" // Optional flag to keep existing images
     } = req.body;
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(422).json({
+        success: false,
         message: "Validation errors occurred.",
         validationErrors: errors.array(),
       });
@@ -136,71 +214,171 @@ exports.postEditProduct = async (req, res) => {
 
     const product = await Product.findById(prodId);
     if (!product) {
-      return res.status(404).json({ message: "Product not found." });
+      return res.status(404).json({ 
+        success: false,
+        message: "Product not found." 
+      });
     }
 
-    // if (product.userId.toString() !== email) {
-    //   return res.status(403).json({ message: 'Forbidden: You are not authorized to edit this product.' });
-    // }
+    // Check if the user owns this product
+    if (product.userId.toString() !== userId) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Forbidden: You are not authorized to edit this product." 
+      });
+    }
 
+    // Update product fields
     product.title = updatedTitle;
-    product.price = updatedPrice;
+    product.arabicTitle = updatedArabicTitle;
+    product.price = parseFloat(updatedPrice);
     product.description = updatedDesc;
     product.details = updatedDetails;
-    product.sizeFrom = updatedSizeFrom;
-    product.sizeTo = updatedSizeTo;
+    product.sizeFrom = updatedSizeFrom ? parseInt(updatedSizeFrom) : undefined;
+    product.sizeTo = updatedSizeTo ? parseInt(updatedSizeTo) : undefined;
     product.sizeInLetters = updatedSizeInLetters;
-    product.sizeInCm = updatedSizeInCm;
-    product.size = updatedSize;
+    product.sizeInCm = updatedSizeInCm ? parseInt(updatedSizeInCm) : undefined;
+    product.size = updatedSize ? { 
+      range: Array.isArray(updatedSize) ? updatedSize : [updatedSize] 
+    } : product.size;
     product.firstColor = firstColor;
     product.secondColor = secondColor;
+    product.rating = updatedRating ? parseFloat(updatedRating) : undefined;
+
+    // Handle image updates - REPLACE existing images with new ones
+    if (req.fileUrls && req.fileUrls.length > 0) {
+      console.log('Replacing existing images with new ones');
+      
+      // If keepExistingImages is false or not provided, replace all images
+      if (keepExistingImages === "false") {
+        product.imageUrl.images = req.fileUrls;
+      } else {
+        // If keepExistingImages is true, append new images to existing ones
+        product.imageUrl.images = [...product.imageUrl.images, ...req.fileUrls];
+      }
+      
+      console.log('Updated image URLs:', product.imageUrl.images);
+    } else if (req.body.removeImages === "true") {
+      // Optional: Clear all images if requested
+      console.log('Clearing all images');
+      product.imageUrl.images = [];
+    }
 
     await product.save();
+    console.log('Product updated successfully:', product._id);
 
-    res.status(200).json({ message: "Product updated successfully!", product });
+    res.status(200).json({ 
+      success: true,
+      message: "Product updated successfully!", 
+      data: {
+        product: product
+      }
+    });
   } catch (err) {
-    console.error(err);
+    console.error('Error in postEditProduct:', err);
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid token" 
+      });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Token expired" 
+      });
+    }
+    
+    if (err.name === 'CastError') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid product ID" 
+      });
+    }
+    
     res.status(500).json({
+      success: false,
       message: "An error occurred while updating the product.",
       error: err.message,
     });
   }
 };
+
+// Delete a product
 exports.postDeleteProduct = async (req, res) => {
-  const prodId = req.body.productId;
+  const prodId = req.params.productId || req.body.productId;
 
   try {
-    const token = req.cookies.token; // Retrieve the token from cookies
+    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+    
     if (!token) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized: No token provided." });
+      return res.status(401).json({ 
+        success: false,
+        message: "Authentication required" 
+      });
     }
 
-    const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
     const userId = decodedToken.userId;
 
     const result = await Product.deleteOne({ _id: prodId, userId: userId });
 
-    // Check if the product was found and deleted
     if (result.deletedCount === 0) {
-      return res
-        .status(404)
-        .json({
-          message:
-            "Product not found or you do not have permission to delete this product.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Product not found or you do not have permission to delete this product.",
+      });
     }
 
-    res.status(200).json({ message: "Product deleted successfully." });
+    res.status(200).json({ 
+      success: true,
+      message: "Product deleted successfully." 
+    });
   } catch (err) {
-    res
-      .status(500)
-      .json({
-        message: "An error occurred while deleting the product.",
-        error: err.message,
+    console.error(err);
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid token" 
       });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while deleting the product.",
+      error: err.message,
+    });
   }
 };
 
-
+// Get a single product
+exports.getProduct = async (req, res) => {
+  try {
+    const productId = req.params.productId;
+    const product = await Product.findById(productId);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found."
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        product: product
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching the product.",
+      error: err.message,
+    });
+  }
+};
