@@ -24,7 +24,8 @@ const corsOptions = {
     'https://croslite.com.eg',
     'https://api.croslite.com.eg:3000',
     'https://croslite.com.eg:3000',
-    'http://localhost:4200'
+    'http://localhost:4200',
+    "https://admin.croslite.com.eg"
   ],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
