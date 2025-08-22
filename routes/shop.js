@@ -11,6 +11,8 @@ router.get("/products", shopController.getProducts);
 
 router.get("/product/:productId", shopController.getProductDetails);
 
+router.get('/products/popular', shopController.getPopularProducts);
+
 router.post("/contact", shopController.postContact);
 
 router.post("/footerSearch", shopController.postFooterSearch);

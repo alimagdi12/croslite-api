@@ -74,6 +74,21 @@ const productSchema = new Schema({
     ref: "User",
     required: true,
   },
+  clicks: {
+    type: Number,
+    required: false,
+    default: 0
+  },
+  isVisible:{
+    type:Boolean,
+    required:false,
+    default : true 
+  },
+  isAvailable:{
+    type:Boolean,
+    required:false,
+    default : true
+  }
 }, {
   timestamps: true // Add createdAt and updatedAt fields
 });

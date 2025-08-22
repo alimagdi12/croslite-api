@@ -11,11 +11,14 @@ const fs = require('fs');
 const https = require('https');
 const cookieParser = require("cookie-parser");
 
-const app = express();
-
+// Import middleware and routes
+const trackVisit = require("./middleware/trachVisit"); // Renamed from trackFirstVisit
 const adminRoutes = require("./routes/admin");
 const shopRoutes = require("./routes/shop");
 const authRoutes = require("./routes/auth");
+const analyticsRoutes = require("./routes/analytics");
+
+const app = express();
 
 const corsOptions = {
   origin: [
@@ -30,14 +33,44 @@ const corsOptions = {
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
 };
+
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Use tracking middleware (tracks EVERY visit)
+app.use(trackVisit);
+
+// Routes
+app.use("/analytics", analyticsRoutes);
 app.use("/admin", adminRoutes);
 app.use(shopRoutes);
 app.use(authRoutes);
+
+// Add test routes for debugging
+app.get("/test-visit", (req, res) => {
+  res.json({ message: "Test visit endpoint", timestamp: new Date() });
+});
+
+app.get("/stats", async (req, res) => {
+  try {
+    const CountryVisit = require("./models/countryVisit");
+    const GovernorateVisit = require("./models/governorateVisit");
+    
+    const countryStats = await CountryVisit.find().sort({ visits: -1 });
+    const governorateStats = await GovernorateVisit.find().sort({ visits: -1 });
+    
+    res.json({
+      countries: countryStats,
+      governorates: governorateStats,
+      totalCountryVisits: countryStats.reduce((sum, country) => sum + country.visits, 0),
+      totalGovernorateVisits: governorateStats.reduce((sum, gov) => sum + gov.visits, 0)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Connect to MongoDB
 mongoose
@@ -62,7 +95,6 @@ mongoose
         console.log(`Development HTTP server running on port ${port}`);
       });
     }
-
   })
   .catch((err) => {
     console.log("MongoDB connection failed:", err);

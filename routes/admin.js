@@ -109,6 +109,12 @@ router.put(
   ],
   adminController.postEditProduct
 );
+
+// routes/admin.js or routes/products.js (wherever your product routes are)
+router.patch('/products/:productId/visibility', adminController.toggleProductVisibility);
+
+// For example, in routes/admin.js or routes/products.js
+router.patch('/products/:productId/availability', adminController.toggleProductAvailability);
   
 // Delete a product
 router.delete("/products/:productId", isAdmin, adminController.postDeleteProduct);

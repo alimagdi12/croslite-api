@@ -35,9 +35,19 @@ exports.getProducts = async (req, res) => {
       .json({ message: "An error occurred while retrieving products." });
   }
 };
+
 exports.getProductDetails = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.productId);
+
+    const product = await Product.findByIdAndUpdate(
+      req.params.productId,
+      { $inc: { clicks: 1 } }, 
+      { new: true }
+    );
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found." });
+    }
 
     return res.status(200).json({
       message: "Product Details retrieved successfully",
@@ -50,6 +60,53 @@ exports.getProductDetails = async (req, res) => {
       .json({ message: "An error occurred while retrieving product Details." });
   }
 };
+
+
+exports.getPopularProducts = async (req, res) => {
+  try {
+    // Get all products sorted by clicks (descending order - highest to lowest)
+    const popularProducts = await Product.find()
+      .select('title price clicks imageUrl createdAt') // Include necessary fields
+      .sort({ clicks: -1 }); // Sort from highest to lowest clicks (most visited first)
+
+    // Calculate statistics for dashboard
+    const totalClicks = popularProducts.reduce((sum, product) => sum + product.clicks, 0);
+    const averageClicks = popularProducts.length > 0 ? totalClicks / popularProducts.length : 0;
+    
+    // Get the most visited product (first in the array)
+    const mostVisited = popularProducts.length > 0 ? popularProducts[0] : null;
+    
+    // Get the least visited product (last in the array)
+    const leastVisited = popularProducts.length > 0 
+      ? popularProducts[popularProducts.length - 1] 
+      : null;
+
+    return res.status(200).json({
+      message: "Popular products retrieved successfully",
+      products: popularProducts, // Already sorted from most to least visited
+      statistics: {
+        totalProducts: popularProducts.length,
+        totalClicks: totalClicks,
+        averageClicks: parseFloat(averageClicks.toFixed(2)),
+        mostVisitedProduct: mostVisited ? {
+          title: mostVisited.title,
+          clicks: mostVisited.clicks
+        } : null,
+        leastVisitedProduct: leastVisited ? {
+          title: leastVisited.title,
+          clicks: leastVisited.clicks
+        } : null
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: "An error occurred while retrieving popular products." });
+  }
+};
+
+
 exports.postContact = async (req, res, next) => {
   const { name, email, message } = req.body;
 
@@ -77,6 +134,7 @@ exports.postContact = async (req, res, next) => {
     });
   }
 };
+
 exports.getCart = async (req, res) => {
   const token = req.headers.token;
 

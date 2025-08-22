@@ -306,6 +306,123 @@ exports.postEditProduct = async (req, res) => {
   }
 };
 
+
+exports.toggleProductVisibility = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const token = req.headers.token;
+
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized access. No token provided." });
+    }
+
+    // Verify token and get user ID
+    const decodedToken = jwt.verify(token, "your_secret_key");
+    const userId = decodedToken.userId;
+
+    // Find the product
+    const product = await Product.findById(productId);
+    
+    if (!product) {
+      return res.status(404).json({ message: "Product not found." });
+    }
+
+    // Check if user owns the product or is admin (you might want to add admin check)
+    if (!product.isOwner(userId)) {
+      return res.status(403).json({ message: "Not authorized to modify this product." });
+    }
+
+    // Toggle the isVisible status
+    product.isVisible = !product.isVisible;
+    
+    // Save the updated product
+    await product.save();
+
+    return res.status(200).json({
+      message: `Product visibility ${product.isVisible ? 'enabled' : 'disabled'} successfully.`,
+      product: {
+        id: product._id,
+        title: product.title,
+        isVisible: product.isVisible
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid token." });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: "Token expired." });
+    }
+    
+    return res.status(500).json({ 
+      message: "An error occurred while updating product visibility." 
+    });
+  }
+};
+
+
+
+exports.toggleProductAvailability = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const token = req.headers.token;
+
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized access. No token provided." });
+    }
+
+    // Verify token and get user ID
+    const decodedToken = jwt.verify(token, "your_secret_key");
+    const userId = decodedToken.userId;
+
+    // Find the product
+    const product = await Product.findById(productId);
+    
+    if (!product) {
+      return res.status(404).json({ message: "Product not found." });
+    }
+
+    // Check if user owns the product or is admin
+    if (!product.isOwner(userId)) {
+      return res.status(403).json({ message: "Not authorized to modify this product." });
+    }
+
+    // Toggle the isAvailable status
+    product.isAvailable = !product.isAvailable;
+    
+    // Save the updated product
+    await product.save();
+
+    return res.status(200).json({
+      message: `Product availability ${product.isAvailable ? 'enabled' : 'disabled'} successfully.`,
+      product: {
+        id: product._id,
+        title: product.title,
+        isAvailable: product.isAvailable
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid token." });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: "Token expired." });
+    }
+    
+    return res.status(500).json({ 
+      message: "An error occurred while updating product availability." 
+    });
+  }
+};
+
+
+
 // Delete a product
 exports.postDeleteProduct = async (req, res) => {
   const prodId = req.params.productId || req.body.productId;
