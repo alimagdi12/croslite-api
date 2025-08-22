@@ -2,18 +2,6 @@ const CountryVisit = require("../models/countryVisit");
 const GovernorateVisit = require("../models/governorateVisit");
 const axios = require("axios");
 
-// Function to get public IP using ipify.org
-const getPublicIP = async () => {
-  try {
-    const response = await axios.get('https://api.ipify.org/?format=json');
-    console.log("Public IP from ipify:", response.data.ip);
-    return response.data.ip;
-  } catch (error) {
-    console.error("Error getting public IP from ipify:", error.message);
-    return null;
-  }
-};
-
 // Function to get location from IP using ipapi.co
 const getLocationFromIP = async (ip) => {
   try {
@@ -26,12 +14,11 @@ const getLocationFromIP = async (ip) => {
     return {
       country: response.data.country_name || 'Unknown',
       countryCode: response.data.country_code || 'Unknown',
-      region: response.data.region || 'Unknown',  // governorate
+      region: response.data.region || 'Unknown',
       city: response.data.city || 'Unknown'
     };
   } catch (error) {
     console.error("Error getting location from IP:", error.message);
-    // Return a default location if API fails
     return {
       country: 'Unknown',
       countryCode: 'Unknown',
@@ -41,42 +28,102 @@ const getLocationFromIP = async (ip) => {
   }
 };
 
-// Middleware to track EVERY visit (not just first time)
+// Middleware to track visit with IP from frontend
 const trackVisit = async (req, res, next) => {
   try {
-    console.log("TrackVisit middleware triggered for path:", req.path);
-
-    // Get public IP
-    let publicIp = await getPublicIP();
-    
-    // If we couldn't get public IP, use a fallback IP for testing
-    if (!publicIp) {
-      console.log("Could not get public IP, using fallback IP");
-      publicIp = '156.208.152.34'; // Example Egyptian IP
+    // Skip if it's the tracking endpoint itself to avoid infinite loops
+    if (req.path === '/api/track-visit') {
+      return next();
     }
 
-    console.log("Using IP for location detection:", publicIp);
+    console.log("TrackVisit middleware triggered for path:", req.path);
+
+    // Check if user already has a visit cookie
+    if (req.cookies.hasVisited) {
+      console.log("User already visited, skipping tracking");
+      return next();
+    }
+
+    // Get IP from frontend if available, otherwise try to detect
+    let userIP = req.body.ip || 
+                 req.headers['x-real-ip'] ||
+                 req.headers['x-forwarded-for'] || 
+                 req.connection.remoteAddress;
+
+    // Handle multiple IPs in x-forwarded-for
+    if (userIP && userIP.includes(',')) {
+      userIP = userIP.split(',')[0].trim();
+    }
+
+    // Clean IP (remove IPv6 prefix if present)
+    userIP = userIP.replace(/^::ffff:/, '');
+
+    console.log("Using IP for location detection:", userIP);
 
     // Get location information from the IP
-    const location = await getLocationFromIP(publicIp);
+    const location = await getLocationFromIP(userIP);
     console.log("Detected location:", location);
     
-    // Always update visit counts, regardless of cookie
+    // Update visit counts
     await updateVisitCounts(location);
+
+    // Set cookie to mark that user has been tracked (expires in 24 hours)
+    res.cookie('hasVisited', 'true', { 
+      maxAge: 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
 
     console.log("Visit tracking completed successfully");
     next();
   } catch (error) {
     console.error("Error in trackVisit middleware:", error.message);
-    // Don't block the request if tracking fails
     next();
+  }
+};
+
+// API endpoint handler for frontend to send IP
+const handleTrackVisit = async (req, res) => {
+  try {
+    const { ip } = req.body;
+    
+    if (!ip) {
+      return res.status(400).json({ error: 'IP address is required' });
+    }
+
+    console.log("Tracking visit from frontend for IP:", ip);
+
+    // Get location information from the IP
+    const location = await getLocationFromIP(ip);
+    console.log("Detected location from frontend IP:", location);
+    
+    // Update visit counts
+    await updateVisitCounts(location);
+
+    // Set cookie
+    res.cookie('hasVisited', 'true', { 
+      maxAge: 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Visit tracked successfully',
+      location: location 
+    });
+  } catch (error) {
+    console.error("Error in handleTrackVisit:", error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
 // Helper function to update visit counts
 async function updateVisitCounts(location) {
   try {
-    // Update country visits (always increment, even if user visited before)
+    // Update country visits
     const updatedCountry = await CountryVisit.findOneAndUpdate(
       { country: location.country },
       { 
@@ -105,4 +152,4 @@ async function updateVisitCounts(location) {
   }
 }
 
-module.exports = trackVisit;
+module.exports = { trackVisit, handleTrackVisit };

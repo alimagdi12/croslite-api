@@ -12,7 +12,7 @@ const https = require('https');
 const cookieParser = require("cookie-parser");
 
 // Import middleware and routes
-const trackVisit = require("./middleware/trachVisit"); // Renamed from trackFirstVisit
+const { trackVisit, handleTrackVisit } = require("./middleware/trachVisit"); // Updated import
 const adminRoutes = require("./routes/admin");
 const shopRoutes = require("./routes/shop");
 const authRoutes = require("./routes/auth");
@@ -22,13 +22,13 @@ const app = express();
 
 const corsOptions = {
   origin: [
-    'https://www.croslite.com.eg:3000',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:4200',
     'https://www.croslite.com.eg',
     'https://croslite.com.eg',
-    'https://api.croslite.com.eg:3000',
-    'https://croslite.com.eg:3000',
-    'http://localhost:4200',
-    "https://admin.croslite.com.eg"
+    'https://api.croslite.com.eg',
+    'https://admin.croslite.com.eg'
   ],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
@@ -39,8 +39,11 @@ app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Use tracking middleware (tracks EVERY visit)
+// Use tracking middleware
 app.use(trackVisit);
+
+// API endpoint for frontend to send IP
+app.post('/api/track-visit', handleTrackVisit);
 
 // Routes
 app.use("/analytics", analyticsRoutes);
