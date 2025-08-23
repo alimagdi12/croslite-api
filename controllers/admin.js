@@ -310,7 +310,7 @@ exports.postEditProduct = async (req, res) => {
 exports.toggleProductVisibility = async (req, res) => {
   try {
     const { productId } = req.params;
-    const token = req.headers.token;
+    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({ message: "Unauthorized access. No token provided." });
@@ -368,7 +368,7 @@ exports.toggleProductVisibility = async (req, res) => {
 exports.toggleProductAvailability = async (req, res) => {
   try {
     const { productId } = req.params;
-    const token = req.headers.token;
+    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({ message: "Unauthorized access. No token provided." });
