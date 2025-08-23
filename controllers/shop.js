@@ -254,111 +254,174 @@ exports.postOrder = async (req, res) => {
     const user = await User.findById(userId)
       .populate("cart.items.productId")
       .exec();
+      
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    const products = user.cart.items.map((i) => ({
+    // Filter out items with null productId (deleted products)
+    const validCartItems = user.cart.items.filter(item => item.productId !== null);
+    
+    // Check if cart is empty after filtering
+    if (validCartItems.length === 0) {
+      return res.status(400).json({ message: "Cart is empty or contains invalid products." });
+    }
+
+    const products = validCartItems.map((i) => ({
       quantity: i.quantity,
       product: { ...i.productId._doc },
     }));
 
-    const totalPrice = products.reduce(
-      (acc, product) => acc + product.quantity * product.product.price,
-      0
-    );
+    // Generate product details HTML
+    const productDetailsHTML = products
+      .map(
+        (product) => `
+        <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+          <h3 style="color: #333; margin-bottom: 10px;">${product.product.title}</h3>
+          <p style="margin: 5px 0;"><strong>Arabic Title:</strong> ${product.product.arabicTitle}</p>
+          <p style="margin: 5px 0;"><strong>Quantity:</strong> ${product.quantity}</p>
+          <p style="margin: 5px 0;"><strong>Description:</strong> ${product.product.description}</p>
+          <p style="margin: 5px 0;"><strong>Details:</strong> ${product.product.details}</p>
+          <p style="margin: 5px 0;"><strong>Size Range:</strong> ${product.product.sizeFrom} - ${product.product.sizeTo}</p>
+          ${product.product.sizeInLetters ? `<p style="margin: 5px 0;"><strong>Size in Letters:</strong> ${product.product.sizeInLetters}</p>` : ''}
+          ${product.product.sizeInCm ? `<p style="margin: 5px 0;"><strong>Size in CM:</strong> ${product.product.sizeInCm} cm</p>` : ''}
+          <p style="margin: 5px 0;"><strong>Primary Color:</strong> ${product.product.firstColor}</p>
+          <p style="margin: 5px 0;"><strong>Secondary Color:</strong> ${product.product.secondColor}</p>
+          ${product.product.imageUrl && product.product.imageUrl.images.length > 0 ? `
+          <p style="margin: 5px 0;"><strong>Images:</strong></p>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+            ${product.product.imageUrl.images.map(img => 
+              `<img src="${img}" alt="${product.product.title}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid #eee;">`
+            ).join('')}
+          </div>
+          ` : ''}
+        </div>
+        `
+      )
+      .join("");
 
-    // Send email with product details
+    // Send email to both user and main email
     await transporter.sendMail({
-      to: [decodedToken.email, "croslitecs2024@gmail.com"],
-      from: "croslitecs2024@gmail.com",
-      subject: "Order Details",
+      to: [decodedToken.email, "croslite.eg2024@gmail.com"], // Send to both user and main email
+      from: "croslite.eg2024@gmail.com",
+      subject: "New Order Details - Croslite",
       html: `
       <html lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Order Details</title>
+          <title>Order Details - Croslite</title>
           <style>
             body {
               font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
               background-color: #f7f7f7;
               margin: 0;
-              padding: 0;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
+              padding: 20px;
             }
             .container {
-              width: 100%;
-              max-width: 600px;
-              margin: 20px;
+              max-width: 800px;
+              margin: 0 auto;
               background-color: #ffffff;
-              padding: 20px;
+              padding: 30px;
               box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
               border-radius: 8px;
             }
             .header {
               text-align: center;
               padding-bottom: 20px;
-              border-bottom: 1px solid #eeeeee;
+              border-bottom: 2px solid #eeeeee;
+              margin-bottom: 30px;
             }
             .header h1 {
-              color: #333333;
+              color: #2c5aa0;
+              margin: 0;
             }
-            .content {
-              font-size: 16px;
-              color: #333333;
-              padding: 20px 0;
+            .customer-info {
+              background-color: #f9f9f9;
+              padding: 20px;
+              border-radius: 8px;
+              margin-bottom: 30px;
+              border-left: 4px solid #2c5aa0;
             }
-            .content ul {
-              list-style-type: none;
-              padding: 0;
+            .customer-info h3 {
+              color: #2c5aa0;
+              margin-top: 0;
             }
-            .content li {
+            .product-section {
+              margin-bottom: 30px;
+            }
+            .product-section h3 {
+              color: #2c5aa0;
+              border-bottom: 2px solid #eeeeee;
+              padding-bottom: 10px;
+            }
+            .product-item {
+              margin: 20px 0;
+              padding: 20px;
+              border: 1px solid #ddd;
+              border-radius: 8px;
               background-color: #fafafa;
-              margin: 10px 0;
-              padding: 10px;
-              border-radius: 4px;
-              border: 1px solid #dddddd;
             }
-            .content .total {
-              font-weight: bold;
-              padding-top: 10px;
+            .product-images {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 10px;
+              margin-top: 15px;
+            }
+            .product-images img {
+              width: 100px;
+              height: 100px;
+              object-fit: cover;
+              border-radius: 4px;
+              border: 1px solid #eee;
             }
             .footer {
               text-align: center;
-              padding-top: 20px;
-              font-size: 12px;
-              color: #aaaaaa;
-              border-top: 1px solid #eeeeee;
+              padding-top: 30px;
+              font-size: 14px;
+              color: #666666;
+              border-top: 2px solid #eeeeee;
+              margin-top: 30px;
             }
             .footer p {
-              margin: 0;
+              margin: 5px 0;
+            }
+            .info-label {
+              font-weight: bold;
+              color: #555;
+              min-width: 150px;
+              display: inline-block;
             }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Order Details</h1>
+              <h1>🎉 New Order Received - Croslite</h1>
             </div>
-            <div class="content">
-              <p>Thank you for your purchase! Here are your order details:</p>
-              <ul id="order-list">
-                ${products
-                  .map(
-                    (product) =>
-                      `<li>${product.product.title} - ${product.quantity} x $${decodedToken.email}</li>`
-                  )
-                  .join("")}
-              </ul>
 
-              <p class="total" id="total-price">${decodedToken.email}</p>
+            <div class="customer-info">
+              <h3>👤 Customer Information</h3>
+              <p><span class="info-label">Name:</span> ${user.firstName} ${user.lastName}</p>
+              <p><span class="info-label">Email:</span> ${user.email}</p>
+              <p><span class="info-label">Phone:</span> ${user.phoneNumber}</p>
+              <p><span class="info-label">Company:</span> ${user.companyName}</p>
+              <p><span class="info-label">Order Date:</span> ${new Date().toLocaleString()}</p>
             </div>
+
+            <div class="product-section">
+              <h3>🛍️ Order Items (${products.reduce((total, p) => total + p.quantity, 0)} items)</h3>
+              ${productDetailsHTML}
+            </div>
+
             <div class="footer">
-              <p>&copy; 2024 Active Group. All rights reserved.</p>
+              <p><strong>Croslite - Quality Products</strong></p>
+              <p>📍 Egypt</p>
+              <p>📞 Customer Service: +20 1205712221</p>
+              <p>📧 Email: customersupport@croslite.com.eg</p>
+              <p style="color: #999; margin-top: 20px;">
+                &copy; 2024 Croslite. All rights reserved.
+              </p>
             </div>
           </div>
         </body>
@@ -367,12 +430,17 @@ exports.postOrder = async (req, res) => {
     });
 
     await user.clearCart();
-    res.status(200).json({ message: "Order placed successfully!" });
+    res.status(200).json({ 
+      message: "Order placed successfully! Confirmation email sent.",
+      productsCount: products.reduce((total, p) => total + p.quantity, 0)
+    });
+    
   } catch (err) {
-    console.error(err);
-    res
-      .status(500)
-      .json({ message: "An error occurred while placing the order." });
+    console.error("Order placement error:", err);
+    res.status(500).json({ 
+      message: "An error occurred while placing the order.",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 
