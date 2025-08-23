@@ -75,6 +75,24 @@ app.get("/stats", async (req, res) => {
   }
 });
 
+// Add this endpoint to help with IP detection
+app.get('/api/client-ip', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || 
+             req.headers['x-real-ip'] || 
+             req.connection.remoteAddress || 
+             req.socket.remoteAddress ||
+             'unknown';
+  
+  // Clean the IP (remove IPv6 prefix if present)
+  const cleanIp = ip.toString().replace(/^::ffff:/, '');
+  
+  res.json({ 
+    ip: cleanIp,
+    headers: req.headers,
+    success: true
+  });
+});
+
 // Connect to MongoDB
 mongoose
   .connect(MONGODB_URI)
