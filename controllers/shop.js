@@ -137,29 +137,35 @@ exports.postContact = async (req, res, next) => {
 
 exports.getCart = async (req, res) => {
   const token = req.headers.token;
-
+  
   if (!token) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized access. No token provided." });
+    return res.status(401).json({ message: "Unauthorized access. No token provided." });
   }
-
+  
   try {
     const decodedToken = jwt.verify(token, "your_secret_key");
     const userId = decodedToken.userId;
-
-    const user = await User.findById(userId).populate("cart.items.productId");
+    
+    const user = await User.findById(userId).populate({
+      path: "cart.items.productId",
+      // Only populate products that still exist
+      match: { _id: { $ne: null } }
+    });
+    
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    const cartItems = user.cart.items.map((item) => ({
-      productId: item.productId._id,
-      name: item.productId.name,
-      price: item.productId.price,
-      imageUrl: item.productId.imageUrl,
-      quantity: item.quantity,
-    }));
+    // Filter out items with null productId and map the rest
+    const cartItems = user.cart.items
+      .filter(item => item.productId !== null) // Remove items with deleted products
+      .map((item) => ({
+        productId: item.productId._id,
+        name: item.productId.title, // Changed from 'name' to 'title' to match your schema
+        price: item.productId.price,
+        imageUrl: item.productId.imageUrl,
+        quantity: item.quantity,
+      }));
 
     res.status(200).json({ cartItems });
   } catch (err) {
