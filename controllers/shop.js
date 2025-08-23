@@ -12,8 +12,8 @@ const jwt = require("jsonwebtoken");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "croslitecs2024@gmail.com",
-    pass: "pkbvygukwibuoneo",
+    user: "croslite.eg2024@gmail.com",
+    pass: "gjzk jlyt rhyb zqzq",
   },
   tls: {
     rejectUnauthorized: false, // This bypasses SSL certificate validation errors
