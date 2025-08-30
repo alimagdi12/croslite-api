@@ -13,7 +13,7 @@ module.exports = async (req, res, next) => {
     const decodedToken = await jwt.verify(token, "your_secret_key");
 
     // Check if the email matches the expected value
-    if (decodedToken.email !== "alimagdi12367@gmail.com") {
+    if (decodedToken.email !== "alimagdi12367@gmail.com" || decodedToken.email !== 'crosliteeg2024@gmail.com') {
       return res.status(403).json({ message: "Forbidden: Access denied." });
     }
     next(); // Proceed to the next middleware
