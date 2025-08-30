@@ -13,7 +13,6 @@ module.exports = async (req, res, next) => {
 
     const decodedToken = await jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
     const email = decodedToken.email;
-console.log(email);
 
     if (email !== 'alimagdi12367@gmail.com' && email !== 'crosliteeg2024@gmail.com') {
       return res.status(403).json({ 
