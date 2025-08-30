@@ -14,7 +14,7 @@ module.exports = async (req, res, next) => {
     const decodedToken = await jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
     const email = decodedToken.email;
 
-    if (email !== 'alimagdi12367@gmail.com') {
+    if (email !== 'alimagdi12367@gmail.com' || email !== 'croslite.eg2024@gmail.com') {
       return res.status(403).json({ 
         success: false, 
         message: "Forbidden: Admin access required" 
