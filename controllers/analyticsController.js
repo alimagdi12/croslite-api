@@ -1,6 +1,6 @@
+const Product = require("../models/product");
 const CountryVisit = require("../models/countryVisit");
 const GovernorateVisit = require("../models/governorateVisit");
-
 exports.getVisitStatistics = async (req, res) => {
   try {
     // Get country visits (sorted by visits descending)
