@@ -65,3 +65,58 @@ exports.getVisitStatsSummary = async (req, res) => {
     });
   }
 };
+
+
+// Track product click
+exports.trackProductClick = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    const product = await Product.findByIdAndUpdate(
+      productId,
+      {
+        $inc: { clicks: 1 },
+        $set: { lastClicked: new Date() }
+      },
+      { new: true }
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Product click tracked'
+    });
+  } catch (error) {
+    console.error('Error tracking product click:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error tracking product click'
+    });
+  }
+};
+
+// Get product click statistics
+exports.getProductClickStats = async (req, res) => {
+  try {
+    const products = await Product.find()
+      .sort({ clicks: -1 })
+      .select('title clicks lastClicked imageUrl');
+    
+    res.status(200).json({
+      success: true,
+      data: products
+    });
+  } catch (error) {
+    console.error('Error getting product click stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting product click statistics'
+    });
+  }
+};
