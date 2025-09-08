@@ -10,16 +10,20 @@ const cors = require("cors");
 const fs = require('fs');
 const https = require('https');
 const cookieParser = require("cookie-parser");
+const { configureSocket } = require('./config/socket');
+const { setupSocketHandlers } = require('./middleware/socketMiddleware');
+// Import routes
+const liveVisitorsRoutes = require('./routes/liveVisitors');
+const analyticsRoutes = require('./routes/analytics');
 
 // Import middleware and routes
 const { trackVisit, handleTrackVisit } = require("./middleware/trachVisit"); // Updated import
 const adminRoutes = require("./routes/admin");
 const shopRoutes = require("./routes/shop");
 const authRoutes = require("./routes/auth");
-const analyticsRoutes = require("./routes/analytics");
 
 const app = express();
-
+const server = https.createServer(app)
 const corsOptions = {
   origin: [
     'https://localhost:3000',
@@ -102,6 +106,28 @@ app.get('/api/client-ip', (req, res) => {
     success: true
   });
 });
+
+
+
+// Configure Socket.io
+const io = configureSocket(server);
+
+// Setup socket handlers
+setupSocketHandlers(io);
+
+// Routes
+app.use('/api/analytics', liveVisitorsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'Analytics API'
+  });
+});
+
 
 // Connect to MongoDB
 mongoose
