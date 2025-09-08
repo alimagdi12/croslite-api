@@ -23,7 +23,6 @@ const updateActivity = (socketId, activityData = {}) => {
   if (visitor) {
     visitor.lastActivity = new Date();
     
-    // Update page if provided
     if (activityData.page) {
       visitor.page = activityData.page;
     }
@@ -44,12 +43,12 @@ const cleanupInactiveVisitors = () => {
   const now = new Date();
   let removed = 0;
   
-  activeVisitors.forEach((visitor, socketId) => {
+  for (const [socketId, visitor] of activeVisitors.entries()) {
     if (now - visitor.lastActivity > 5 * 60 * 1000) {
       activeVisitors.delete(socketId);
       removed++;
     }
-  });
+  }
   
   if (removed > 0) {
     totalLiveVisitors = activeVisitors.size;

@@ -9,24 +9,26 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const cors = require("cors");
 const fs = require('fs');
 const https = require('https');
+const http = require('http');
 const cookieParser = require("cookie-parser");
-const { configureSocket } = require('./config/socket');
-const { setupSocketHandlers } = require('./middleware/socketMiddleware');
-// Import routes
-const liveVisitorsRoutes = require('./routes/liveVisitors');
-const analyticsRoutes = require('./routes/analytics');
 
 // Import middleware and routes
-const { trackVisit, handleTrackVisit } = require("./middleware/trachVisit"); // Updated import
+const { trackVisit, handleTrackVisit } = require("./middleware/trachVisit");
 const adminRoutes = require("./routes/admin");
 const shopRoutes = require("./routes/shop");
 const authRoutes = require("./routes/auth");
+const analyticsRoutes = require("./routes/analytics");
+
+// Import socket configuration
+const { configureSocket } = require('./config/socket');
+const { setupSocketHandlers } = require('./middleware/socketMiddleware');
+const liveVisitorsRoutes = require('./routes/liveVisitors');
 
 const app = express();
-const server = https.createServer(app)
+
 const corsOptions = {
   origin: [
-    'https://localhost:3000',
+    'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:4200',
     'https://www.croslite.com.eg',
@@ -51,7 +53,6 @@ app.use((req, res, next) => {
   res.removeHeader("ETag");
   next();
 });
-
 
 // Use tracking middleware
 app.use(trackVisit);
@@ -97,7 +98,6 @@ app.get('/api/client-ip', (req, res) => {
              req.socket.remoteAddress ||
              'unknown';
   
-  // Clean the IP (remove IPv6 prefix if present)
   const cleanIp = ip.toString().replace(/^::ffff:/, '');
   
   res.json({ 
@@ -107,17 +107,8 @@ app.get('/api/client-ip', (req, res) => {
   });
 });
 
-
-
-// Configure Socket.io
-const io = configureSocket(server);
-
-// Setup socket handlers
-setupSocketHandlers(io);
-
-// Routes
+// Live visitors routes
 app.use('/api/analytics', liveVisitorsRoutes);
-app.use('/api/analytics', analyticsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -128,10 +119,17 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Create HTTP server (Socket.io works with HTTP, not directly with Express)
+const server = http.createServer(app);
+
+// Configure Socket.io
+const io = configureSocket(server);
+
+// Setup socket handlers
+setupSocketHandlers(io);
 
 // Connect to MongoDB
-mongoose
-  .connect(MONGODB_URI)
+mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log("Database connected");
 
@@ -142,14 +140,21 @@ mongoose
         ca: fs.readFileSync('/var/cpanel/ssl/apache_tls/api.croslite.com.eg/combined')
       };
 
-      https.createServer(sslOptions, app).listen(3001, '0.0.0.0', () => {
+      // Create HTTPS server for production
+      const httpsServer = https.createServer(sslOptions, app);
+      httpsServer.listen(3001, '0.0.0.0', () => {
         console.log("Production HTTPS server running on port 3001");
       });
 
     } else {
-      // Run a basic HTTP server locally
+      // Use HTTP server for development (Socket.io needs this)
+      server.listen(3001, () => {
+        console.log("Development server running on port 3001 (HTTP for Socket.io)");
+      });
+      
+      // Also start regular Express app on different port
       app.listen(port, () => {
-        console.log(`Development HTTP server running on port ${port}`);
+        console.log(`Express app running on port ${port}`);
       });
     }
   })

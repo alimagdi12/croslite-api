@@ -4,7 +4,7 @@ const {
   updateActivity,
   removeVisitor,
   getVisitorsData
-} = require('../util/visitorTracker');
+} = require('../utils/visitorTracker');
 
 let ioInstance = null;
 
@@ -17,7 +17,6 @@ const initializeLiveVisitorsService = (io) => {
 const handleConnection = (socket) => {
   console.log('User connected:', socket.id);
 
-  // Visitor joined event
   socket.on('visitor-joined', (visitorData) => {
     try {
       const visitorsData = addVisitor(socket.id, visitorData);
@@ -28,7 +27,6 @@ const handleConnection = (socket) => {
     }
   });
 
-  // Visitor activity event
   socket.on('visitor-activity', (activityData = {}) => {
     try {
       updateActivity(socket.id, activityData);
@@ -37,7 +35,6 @@ const handleConnection = (socket) => {
     }
   });
 
-  // Handle disconnection
   socket.on('disconnect', () => {
     try {
       console.log('User disconnected:', socket.id);
@@ -49,7 +46,6 @@ const handleConnection = (socket) => {
     }
   });
 
-  // Send current state to newly connected dashboard clients
   socket.on('request-initial-state', () => {
     try {
       const visitorsData = getVisitorsData();
