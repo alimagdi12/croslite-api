@@ -1,10 +1,14 @@
-const { getLiveVisitors } = require('../services/liveVisitorsService');
+const {
+  initializeLiveVisitorsService,
+  handleConnection,
+  getLiveVisitors
+} = require('../services/liveVisitorsService');
 
 let isServiceInitialized = false;
 
 const initializeLiveVisitors = (io) => {
   if (!isServiceInitialized) {
-    require('../services/liveVisitorsService').initializeLiveVisitorsService(io);
+    initializeLiveVisitorsService(io);
     isServiceInitialized = true;
     console.log('Live visitors controller initialized');
   }
@@ -65,6 +69,7 @@ const getLiveVisitorsCountController = (req, res) => {
 
 module.exports = {
   initializeLiveVisitors,
+  handleConnection,
   getLiveVisitorsController,
   getLiveVisitorsCountController
 };

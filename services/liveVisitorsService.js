@@ -4,7 +4,7 @@ const {
   updateActivity,
   removeVisitor,
   getVisitorsData
-} = require('../utils/visitorTracker');
+} = require('../util/visitorTracker');
 
 let ioInstance = null;
 
