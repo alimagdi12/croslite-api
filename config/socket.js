@@ -5,12 +5,15 @@ const configureSocket = (server) => {
     cors: {
       origin: [
         'http://localhost:3000', 
+        'http://localhost:3001', 
         'http://localhost:4200', 
         'https://croslite.com.eg',
-        'https://www.croslite.com.eg'
+        'https://www.croslite.com.eg',
+        'https://admin.croslite.com.eg'
       ],
       methods: ['GET', 'POST'],
-      credentials: true
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization']
     },
     transports: ['websocket', 'polling']
   });

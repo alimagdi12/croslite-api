@@ -146,15 +146,15 @@ mongoose.connect(MONGODB_URI)
         console.log("Production HTTPS server running on port 3001");
       });
 
+      // Also start HTTP server for Socket.io on different port
+      server.listen(3002, '0.0.0.0', () => {
+        console.log("Socket.io server running on port 3002");
+      });
+
     } else {
       // Use HTTP server for development (Socket.io needs this)
-      server.listen(3001, () => {
+      server.listen(3001, '0.0.0.0', () => {
         console.log("Development server running on port 3001 (HTTP for Socket.io)");
-      });
-      
-      // Also start regular Express app on different port
-      app.listen(port, () => {
-        console.log(`Express app running on port ${port}`);
       });
     }
   })
