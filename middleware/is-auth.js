@@ -1,27 +1,33 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/user");
 
 module.exports = async (req, res, next) => {
-  const token = req.headers.token; // Extract the token
+  const token = req.headers.token;
+
   if (!token) {
-    return res
-      .status(401)
-      .json({ message: "Unauthorized access. No token provided." });
+    return res.status(401).json({ message: "Unauthorized: No token provided." });
   }
 
   try {
-    // Verify the token
-    const decodedToken = await jwt.verify(token, "your_secret_key");
+    // Verify token
+    const decodedToken = jwt.verify(token, "your_secret_key");
+    const userEmail = decodedToken.email;
 
-    // Check if the email matches the expected value
-    if (decodedToken.email !== "alimagdi12367@gmail.com" || decodedToken.email !== 'crosliteeg2024@gmail.com') {
-      return res.status(403).json({ message: "Forbidden: Access denied." });
+    // Look for the email in the database
+    const user = await User.findOne({ email: userEmail });
+
+    if (!user) {
+      return res.status(403).json({ message: "Forbidden: Email not found." });
     }
-    next(); // Proceed to the next middleware
+
+    // Optionally attach user info to request for later use
+    req.user = user;
+
+    next(); // Continue to next middleware
   } catch (err) {
-    // Handle token verification errors
-    console.log(err);
+    console.error(err);
     return res
       .status(401)
-      .json({ message: "Unauthorized access. Invalid token." });
+      .json({ message: "Unauthorized: Invalid or expired token." });
   }
 };
